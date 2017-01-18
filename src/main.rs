@@ -35,7 +35,7 @@ struct Wrapper<'a> {
     count: u32,
     next: Cow<'a, str>,
     previous: Option<u32>,
-    results: Vec<Cow<'a, str>>,
+    results: Vec<Planet<'a>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -309,7 +309,7 @@ impl Service for Echo {
                         let deserialized_body : Wrapper = serde_json::from_str(std::str::from_utf8(&full_body).unwrap()).unwrap();
                         Response::new()
                             .with_header(ContentLength(full_body.len() as u64))
-                            .with_body(full_body)
+                            .with_body(serde_json::to_string(&deserialized_body).unwrap())
                     }))
             },
             _ => {
@@ -331,16 +331,9 @@ fn main() {
         let i = i;
         let handle = thread::spawn(move|| {
             let (listening, server) = Server::standalone(|tokio| {
-                scheduler::set_self_affinity(scheduler::CpuSet::single(i)).expect("setting affinity failed");
-
                 let listener = TcpBuilder::new_v4()?.reuse_port(true)?.bind(addr)?.listen(10000)?;
                 let addr = try!(listener.local_addr());
                 let listener = try!(TcpListener::from_listener(listener, &addr, tokio));
-                /*
-                        Server::http(&a, tokio)?
-                        .handle(|| Ok(Echo), tokio)
-                        }).unwrap();
-                */
                 Server::new(listener.incoming(), addr).handle(|| Ok(Echo), tokio)
             }).unwrap();
             println!("Listening {} on http://{}", i, listening);
