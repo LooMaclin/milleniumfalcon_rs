@@ -1,0 +1,17 @@
+[package]
+name = "hyper_test"
+version = "0.1.0"
+authors = ["loo.maclin <loo.maclin@protonmail.com>"]
+
+[dependencies]
+futures = "0.1.9"
+pretty_env_logger = "0.1.0"
+hyper = { git = "https://github.com/polachok/hyper.git", branch = "bench" }
+log = "0.3.6"
+serde = "0.9.0-rc1"
+serde_derive = "0.9.0-rc1"
+serde_json = "0.8.5"
+net2 = "0.2"
+fringe = "1.2.1"
+scheduler = "0.1"
+tokio-core = "0.1.3"
