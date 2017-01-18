@@ -22,6 +22,7 @@ use hyper::header::ContentLength;
 use hyper::server::{Server, Service, Request, Response};
 use std::borrow::Cow;
 use futures::Future;
+use futures::future::{ok};
 
 use futures::Stream;
 use std::io::{self, Write};
@@ -293,24 +294,28 @@ impl Service for Echo {
     type Request = Request;
     type Response = Response;
     type Error = hyper::Error;
-    type Future = ::futures::Finished<Response, hyper::Error>;
+    type Future = Box<Future<Item = self::Response, Error = hyper::error::Error>>;
 
-    fn call(&self, req: Request) -> impl Future {
-        ::futures::finished(match (req.method(), req.path()) {
+    fn call(&self, req: Request) -> Self::Future {
+        match (req.method(), req.path()) {
             (&Post, "/planets.json") => {
                 let body = Vec::new();
-                req.body()
+                Box::new(req.body()
                     .fold(body, |mut body, chunk| {
                         body.extend_from_slice(&chunk);
                         Ok::<Vec<u8>, hyper::Error>(body)
                     })
                     .map(|full_body| {
+                        let deserialized_body : Wrapper = serde_json::from_str(std::str::from_utf8(&full_body).unwrap()).unwrap();
                         Response::new()
                             .with_header(ContentLength(full_body.len() as u64))
                             .with_body(full_body)
-                    })
+                    }))
+            },
+            _ => {
+                Box::new(ok(Response::new()))
             }
-        })
+        }
     }
 
 }
