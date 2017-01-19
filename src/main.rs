@@ -7,6 +7,7 @@ extern crate pretty_env_logger;
 extern crate log;
 extern crate net2;
 extern crate tokio_core;
+extern crate thread_local;
 extern crate scheduler;
 
 #[macro_use]
@@ -23,12 +24,14 @@ use hyper::server::{Server, Service, Request, Response};
 use std::borrow::Cow;
 use futures::Future;
 use futures::future::{ok};
+use std::cell::Cell;
 
 use futures::Stream;
 use std::io::{self, Write};
 use net2::TcpBuilder;
 use net2::unix::UnixTcpBuilderExt;
 use tokio_core::net::TcpListener;
+use thread_local::ThreadLocal;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Wrapper<'a> {
@@ -59,8 +62,8 @@ struct Planet<'a> {
 
 static INDEX: &'static [u8] = b"Try POST /echo";
 
-#[derive(Clone, Copy)]
-struct Echo;
+#[derive(Clone)]
+struct Echo{}
 
 impl<'a> Default for Wrapper<'a> {
     fn default() -> Wrapper<'a> {
@@ -69,6 +72,14 @@ impl<'a> Default for Wrapper<'a> {
             next: Cow::Borrowed("next"),
             previous: Some(1),
             results: vec![],
+        }
+    }
+}
+
+impl Default for Echo {
+    fn default() -> Echo {
+        Echo {
+
         }
     }
 }
@@ -127,7 +138,7 @@ fn main() {
                 let listener = TcpBuilder::new_v4()?.reuse_port(true)?.bind(addr)?.listen(10000)?;
                 let addr = try!(listener.local_addr());
                 let listener = try!(TcpListener::from_listener(listener, &addr, tokio));
-                Server::new(listener.incoming(), addr).handle(|| Ok(Echo), tokio)
+                Server::new(listener.incoming(), addr).handle(|| Ok(Echo::default()), tokio)
             }).unwrap();
             println!("Listening {} on http://{}", i, listening);
             server.run();
