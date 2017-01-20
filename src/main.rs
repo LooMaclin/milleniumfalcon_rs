@@ -112,7 +112,7 @@ impl Service for Echo {
                             };
                         let serialized_body = serde_json::to_string(&deserialized_body).unwrap();
                         Response::new()
-                            .with_header(ContentLength(serialized_body.len() as u64))
+                        .with_header(ContentLength(serialized_body.len() as u64))
                             .with_body(serialized_body)
                     }))
             },
