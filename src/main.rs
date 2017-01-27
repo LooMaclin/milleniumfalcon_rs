@@ -9,6 +9,7 @@ extern crate net2;
 extern crate tokio_core;
 extern crate thread_local;
 extern crate scheduler;
+extern crate tarantool;
 
 #[macro_use]
 extern crate serde_derive;
@@ -32,6 +33,17 @@ use net2::TcpBuilder;
 use net2::unix::UnixTcpBuilderExt;
 use tokio_core::net::TcpListener;
 use thread_local::ThreadLocal;
+use tarantool::tarantool::Tarantool;
+use tarantool::client::Client;
+use tarantool::tarantool::HeterogeneousElement;
+use tarantool::iterator_type::IteratorType;
+
+#[derive(Debug)]
+pub struct Group<'a> {
+    id: u64,
+    name: &'a str,
+    year: u64,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Wrapper<'a> {
@@ -62,8 +74,9 @@ struct Planet<'a> {
 
 static INDEX: &'static [u8] = b"Try POST /echo";
 
-#[derive(Clone)]
-struct Echo{}
+struct Echo<'a>{
+    connection: Tarantool<'a>,
+}
 
 impl<'a> Default for Wrapper<'a> {
     fn default() -> Wrapper<'a> {
@@ -76,15 +89,17 @@ impl<'a> Default for Wrapper<'a> {
     }
 }
 
-impl Default for Echo {
-    fn default() -> Echo {
+impl<'a> Default for Echo<'a> {
+    fn default() -> Echo<'a> {
+        let connection = Tarantool::new("127.0.0.1:3301", "test", "test");
+        connection.auth();
         Echo {
-
+            connection: connection,
         }
     }
 }
 
-impl Service for Echo {
+impl<'a> Service for Echo<'a> {
     type Request = Request;
     type Response = Response;
     type Error = hyper::Error;
@@ -110,6 +125,13 @@ impl Service for Echo {
                                     Wrapper::default()
                                 }
                             };
+                        let result = self.connection.select(512, 0, 10, 0, IteratorType::Eq, (3)).unwrap();
+                        let group = Group {
+                            id: result.get(0).unwrap().as_u64().unwrap_or(0),
+                            name: result.get(1).unwrap().as_str().unwrap_or("fuck"),
+                            year: result.get(2).unwrap().as_u64().unwrap_or(0),
+                        };
+                        println!("Group: {:?}", group);
                         let serialized_body = serde_json::to_string(&deserialized_body).unwrap();
                         Response::new()
                         .with_header(ContentLength(serialized_body.len() as u64))
