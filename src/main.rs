@@ -130,7 +130,7 @@ fn main() {
     pretty_env_logger::init().unwrap();
     let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
     let mut threads = vec![];
-    for i in 0..11 {
+    for i in 0..4 {
         use std::thread;
         let i = i;
         let handle = thread::spawn(move|| {
