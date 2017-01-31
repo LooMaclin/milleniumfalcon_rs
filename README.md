@@ -51,10 +51,9 @@ Requests/sec:  46791.60
 Transfer/sec:    225.98MB
 ```
 
-##Test 2 (01.02.2017): 4 threads - echo server with ser/deser json, with tarantool select one tuple from db (my sync connector):
+##Test 2 (01.02.2017): 8 threads - i7-4720hq - echo server with ser/deser json, with tarantool select one tuple from db (my sync connector):
 
 ```
-[loomaclin@localhost milleniumfalcon-rs]$ wrk -d1m -c7168 -t4 -s ~/IdeaProjects/milleniumfalcon-rs/planets.lua --latency http://127.0.0.1:1337/planets.json
 Running 1m test @ http://127.0.0.1:1337/planets.json
   4 threads and 7168 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
@@ -71,4 +70,22 @@ Requests/sec:  24713.61
 Transfer/sec:    119.35MB
 ```
 
+##Test 2 (01.02.2017): 8 threads - i7-4720hq - echo server with ser/deser json, with postgres select one record from db (sfackler sync connector):
+
+```
+Running 1m test @ http://127.0.0.1:1337/planets.json
+  4 threads and 7168 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    51.80ms   22.73ms 232.01ms   72.23%
+    Req/Sec     4.38k     1.39k    8.93k    62.83%
+  Latency Distribution
+     50%   48.39ms
+     75%   66.36ms
+     90%   80.03ms
+     99%  123.94ms
+  1042202 requests in 1.00m, 4.92GB read
+  Socket errors: connect 6151, read 314, write 6811891, timeout 0
+Requests/sec:  17352.75
+Transfer/sec:     83.80MB
+```
 
