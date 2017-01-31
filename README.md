@@ -58,17 +58,17 @@ Transfer/sec:    225.98MB
 Running 1m test @ http://127.0.0.1:1337/planets.json
   4 threads and 7168 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    17.64ms    7.51ms  85.90ms   77.46%
-    Req/Sec     4.98k     2.80k   11.67k    58.92%
+    Latency    12.79ms    7.03ms 107.36ms   72.27%
+    Req/Sec     6.22k     1.86k   11.51k    62.05%
   Latency Distribution
-     50%   14.56ms
-     75%   20.97ms
-     90%   28.90ms
-     99%   41.64ms
-  1187319 requests in 1.00m, 5.60GB read
-  Socket errors: connect 6151, read 297, write 13482535, timeout 0
-Requests/sec:  19765.89
-Transfer/sec:     95.46MB
+     50%   11.76ms
+     75%   16.54ms
+     90%   21.56ms
+     99%   34.82ms
+  1484519 requests in 1.00m, 7.00GB read
+  Socket errors: connect 6151, read 757, write 11130087, timeout 0
+Requests/sec:  24713.61
+Transfer/sec:    119.35MB
 ```
 
 
