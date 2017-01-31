@@ -10,7 +10,9 @@ extern crate tokio_core;
 extern crate thread_local;
 extern crate scheduler;
 extern crate tarantool;
-
+extern crate postgres;
+extern crate r2d2;
+extern crate r2d2_postgres;
 #[macro_use]
 extern crate serde_derive;
 
@@ -38,6 +40,8 @@ use tarantool::client::Client;
 use tarantool::iterator_type::IteratorType;
 use std::sync::Arc;
 use std::cell::RefCell;
+use r2d2_postgres::{TlsMode, PostgresConnectionManager};
+use postgres::{Connection};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Wrapper<'a> {
@@ -65,8 +69,8 @@ struct Planet<'a> {
     url: Cow<'a, str>,
 }
 
-struct Echo<'a>{
-    connection: RefCell<Tarantool<'a>>,
+struct Echo{
+    connection: r2d2::Pool<r2d2_postgres::PostgresConnectionManager>,
 }
 
 impl<'a> Default for Wrapper<'a> {
@@ -80,15 +84,16 @@ impl<'a> Default for Wrapper<'a> {
     }
 }
 
-impl<'a> Service for Echo<'a> {
+impl Service for Echo {
     type Request = Request;
     type Response = Response;
     type Error = hyper::Error;
     type Future = Box<Future<Item = self::Response, Error = hyper::error::Error>>;
 
     fn call(&self, req: Request) -> Self::Future {
-        let mut conn = self.connection.borrow_mut();
-        let db_result = conn.select(512, 0, 10, 0, IteratorType::Eq, (3)).unwrap();
+        let db = self.connection.clone();
+        let db = db.get().unwrap();
+        db.query("SELECT * FROM test WHERE id = $1", &[&1]).unwrap();
         match (req.method(), req.path()) {
             (&Post, "/planets.json") => {
                 let body = Vec::new();
@@ -128,23 +133,20 @@ fn main() {
     pretty_env_logger::init().unwrap();
     let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
     let mut threads = vec![];
-    for i in 0..4 {
+    for i in 0..8 {
         use std::thread;
         let i = i;
-        //let mut tarantool = ;
-
-        let handle = thread::spawn(move|| {
+        let handle = thread::spawn(move || {
+            let config = r2d2::Config::default();
+            let manager = PostgresConnectionManager::new("postgres://postgres:mysecretpassword@127.0.0.1:5432/test",
+                                                         TlsMode::None).unwrap();
+            let pool = r2d2::Pool::new(config, manager).unwrap();
             let (listening, server) = Server::standalone(|tokio| {
                 let listener = TcpBuilder::new_v4()?.reuse_port(true)?.bind(addr)?.listen(10000)?;
                 let addr = try!(listener.local_addr());
                 let listener = try!(TcpListener::from_listener(listener, &addr, tokio));
 
-                Server::new(listener.incoming(), addr).handle(|| Ok(Echo {
-                    connection:
-                        RefCell::new(Tarantool::auth("127.0.0.1:3301", "test", "test")
-                            .unwrap_or_else(|err| {
-                                panic!("Tarantool auth error: {:?}", &err);
-                            })) }), tokio)
+                Server::new(listener.incoming(), addr).handle(move || Ok(Echo { connection: pool.clone() }), tokio)
                                     }).unwrap();
                                     println!("Listening {} on http://{}", 1, listening);
                                     server.run();
