@@ -32,7 +32,7 @@ wrk -d1m -c7168 -t4 -s ~/IdeaProjects/milleniumfalcon-rs/planets.lua --latency h
 
 #Tests:
 
-##4 threads - simple echo server based on hyper-async-master-branch with deserealization and serialization based on serde:
+##Test 1: 4 threads - simple echo server based on hyper-async-master-branch with deserealization and serialization based on serde:
 
 ```
 Running 1m test @ http://127.0.0.1:1337/planets.json
@@ -51,5 +51,24 @@ Requests/sec:  46791.60
 Transfer/sec:    225.98MB
 ```
 
+##Test 2 (01.02.2017): 4 threads - echo server with ser/deser json, with tarantool select one tuple from db (my sync connector):
+
+```
+[loomaclin@localhost milleniumfalcon-rs]$ wrk -d1m -c7168 -t4 -s ~/IdeaProjects/milleniumfalcon-rs/planets.lua --latency http://127.0.0.1:1337/planets.json
+Running 1m test @ http://127.0.0.1:1337/planets.json
+  4 threads and 7168 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    17.64ms    7.51ms  85.90ms   77.46%
+    Req/Sec     4.98k     2.80k   11.67k    58.92%
+  Latency Distribution
+     50%   14.56ms
+     75%   20.97ms
+     90%   28.90ms
+     99%   41.64ms
+  1187319 requests in 1.00m, 5.60GB read
+  Socket errors: connect 6151, read 297, write 13482535, timeout 0
+Requests/sec:  19765.89
+Transfer/sec:     95.46MB
+```
 
 
