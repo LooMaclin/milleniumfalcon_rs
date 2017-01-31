@@ -35,8 +35,8 @@ use tokio_core::net::TcpListener;
 use thread_local::ThreadLocal;
 use tarantool::tarantool::Tarantool;
 use tarantool::client::Client;
-use tarantool::tarantool::HeterogeneousElement;
 use tarantool::iterator_type::IteratorType;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Group<'a> {
@@ -75,7 +75,7 @@ struct Planet<'a> {
 static INDEX: &'static [u8] = b"Try POST /echo";
 
 struct Echo<'a>{
-    connection: Tarantool<'a>,
+    connection: Arc<Tarantool<'a>>,
 }
 
 impl<'a> Default for Wrapper<'a> {
@@ -89,16 +89,6 @@ impl<'a> Default for Wrapper<'a> {
     }
 }
 
-impl<'a> Default for Echo<'a> {
-    fn default() -> Echo<'a> {
-        let connection = Tarantool::new("127.0.0.1:3301", "test", "test");
-        connection.auth();
-        Echo {
-            connection: connection,
-        }
-    }
-}
-
 impl<'a> Service for Echo<'a> {
     type Request = Request;
     type Response = Response;
@@ -106,6 +96,13 @@ impl<'a> Service for Echo<'a> {
     type Future = Box<Future<Item = self::Response, Error = hyper::error::Error>>;
 
     fn call(&self, req: Request) -> Self::Future {
+        let result = self.connection.select(512, 0, 10, 0, IteratorType::Eq, (3)).unwrap();
+        let group = Group {
+            id: result.get(0).unwrap().as_u64().unwrap_or(0),
+            name: result.get(1).unwrap().as_str().unwrap_or("fuck"),
+            year: result.get(2).unwrap().as_u64().unwrap_or(0),
+        };
+        println!("Group: {:?}", group);
         match (req.method(), req.path()) {
             (&Post, "/planets.json") => {
                 let body = Vec::new();
@@ -125,13 +122,6 @@ impl<'a> Service for Echo<'a> {
                                     Wrapper::default()
                                 }
                             };
-                        let result = self.connection.select(512, 0, 10, 0, IteratorType::Eq, (3)).unwrap();
-                        let group = Group {
-                            id: result.get(0).unwrap().as_u64().unwrap_or(0),
-                            name: result.get(1).unwrap().as_str().unwrap_or("fuck"),
-                            year: result.get(2).unwrap().as_u64().unwrap_or(0),
-                        };
-                        println!("Group: {:?}", group);
                         let serialized_body = serde_json::to_string(&deserialized_body).unwrap();
                         Response::new()
                         .with_header(ContentLength(serialized_body.len() as u64))
@@ -151,23 +141,28 @@ fn main() {
     use std::net::SocketAddr;
     pretty_env_logger::init().unwrap();
     let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
-    let mut threads = vec![];
+    /*let mut threads = vec![];
     for i in 0..4 {
         use std::thread;
-        let i = i;
-        let handle = thread::spawn(move|| {
+        let i = i;*/
+        let mut tarantool = Arc::new(Tarantool::auth("127.0.0.1:3301", "test", "test").unwrap_or_else(|err| {
+            panic!("Tarantool auth error: {:?}", &err);
+        }));
+
+        /*let handle = thread::spawn(move|| {*/
             let (listening, server) = Server::standalone(|tokio| {
                 let listener = TcpBuilder::new_v4()?.reuse_port(true)?.bind(addr)?.listen(10000)?;
                 let addr = try!(listener.local_addr());
                 let listener = try!(TcpListener::from_listener(listener, &addr, tokio));
-                Server::new(listener.incoming(), addr).handle(|| Ok(Echo::default()), tokio)
+
+                Server::new(listener.incoming(), addr).handle(move || Ok(Echo { connection: tarantool.clone() }), tokio)
             }).unwrap();
-            println!("Listening {} on http://{}", i, listening);
+            println!("Listening {} on http://{}", 1, listening);
             server.run();
-        });
+       /* });
         threads.push(handle);
     }
     for t in threads {
         t.join().unwrap();
-    }
+    }*/
 }
